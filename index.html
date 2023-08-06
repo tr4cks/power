@@ -16,6 +16,9 @@
     </head>
     <body>
         <main>
+            {{if .power}}
+            <div class="halo"></div>
+            {{end}}
             <form method="post" {{if .power}}onsubmit="return confirmForm();"{{end}} class="center">
                 <div class="power-container">
                     <button type="submit" class="power-button {{if .power}}power-button--on{{end}} {{if .error}}power-button--error{{end}}">
