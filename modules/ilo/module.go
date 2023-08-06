@@ -38,7 +38,7 @@ func (m *IloModule) Init(config map[string]interface{}) error {
 func (m *IloModule) State() (modules.Result[bool], modules.Result[bool]) {
 	powerStateTask, powerStateChan := modules.MakeAsync(func() modules.Result[bool] {
 		value, err := m.Client.PowerState()
-		return modules.Result[bool]{*value == PowerStateOn, err}
+		return modules.Result[bool]{err == nil && *value == PowerStateOn, err}
 	})
 
 	pingTask, pingChan := modules.MakeAsync(func() modules.Result[bool] {
