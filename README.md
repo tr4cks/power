@@ -1,4 +1,285 @@
-# power
-All-in-one tool for remote server power control
+<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
+<a name="readme-top"></a>
 
-Coming soon
+
+
+<!-- STYLE -->
+<style>
+.shiny--green {
+    color: rgb(135,187,83);
+    text-shadow: 0px 0px 3px rgba(135,187,83,0.5);
+}
+
+.shiny--white {
+    color: white;
+    text-shadow: 0px 0px 3px rgb(250,250,250);
+}
+</style>
+
+
+
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/tr4cks/power">
+    <img src="assets/header.png" alt="Logo" width="320">
+  </a>
+
+  <h3 align="center">
+    <span class="shiny--green">Power</span><span style="font-size: 30px;"> 🦸‍♀️ </span><span class="shiny--white">One click, One button</span>
+  </h3>
+
+  <p align="center">
+    All-in-one tool for remote server power control
+  </p>
+</div>
+
+<br />
+
+[![GitHub](https://img.shields.io/github/license/tr4cks/power)](https://github.com/tr4cks/power/blob/main/LICENSE)
+
+---
+
+
+
+<!-- TABLE OF CONTENTS -->
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li><a href="#about-the-project">About The Project</a></li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li>
+          <a href="#installation">Installation</a>
+          <ul>
+            <li><a href="#ilo-configuration">ilo configuration</a></li>
+            <li><a href="#wol-configuration">wol configuration</a></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#enhancements">Enhancements</a></li>
+    <li><a href="#license">License</a></li>
+    <li><a href="#credits">Credits</a></li>
+  </ol>
+</details>
+
+
+
+<!-- ABOUT THE PROJECT -->
+## About The Project
+
+This easy-to-use project is designed to control the switching on and off of a server through a web interface. As it's easy to install and consumes few resources, you can deploy it on a first-generation Raspberry Pi. This can enable you to control your home server simply, while consuming a little less energy.
+
+This project also makes it possible to bypass the technical restrictions preventing the broadcasting of a magic packet (WOL) within the internal network over a VPN.
+
+*❗️ Please note that this service is not intended (for the moment) to be deployed directly on the Internet, but is for internal use only. To access it externally, please use a secure way to connect such as through a VPN, Authelia...*
+
+
+
+<!-- GETTING STARTED -->
+## Getting Started
+
+### Prerequisites
+
+Start by getting the application binary either by downloading a release from GitHub or by building it using the following commands:
+
+```shell
+GOOS=linux GOARCH=arm GOARM=6 go build
+```
+
+*❕ This command is suitable for first-generation Raspberry Pi. Be sure to modify the operating system and architecture to suit your target.*
+
+### Installation
+
+To start with, here's how to easily launch the server. No need to import `html` or `css` files, a simple configuration file is all you need:
+
+```shell
+power -m wol --config config.yaml
+```
+
+Currently, two modules are available:
+* `ilo`: use of HP iLO technology integrated into ProLiant range servers. This module enables the server to be switched on and off with a complete display of its status.
+* `wol`: use Wake-on-LAN to start the server. This module only allows the server to be started, and has a restricted display of the server status.
+
+*❗️ The `ilo` module has only been implemented and tested based on the `iLO4` API, and is therefore probably not compatible with other major versions. Don't hesitate to start an issue or a pull request if you're interested in other versions.*
+
+As we saw above, the server needs a configuration file in order to be launched. Configuration files contain 2 mandatory fields, common to all modules: `username` and `password`.
+
+```yaml
+username: username
+password: password
+```
+
+These identifiers are used to restrict access for server shutdown.
+
+Depending on the selected module, configurations may differ. For this reason, a `module` field may need to be defined, containing all the configuration specific to each module.
+
+Now let's move on to the configuration of all the different modules:
+
+#### `ilo` configuration
+
+Four additional parameters must be defined for this module:
+  * `hostname`: use to ping your server
+  * `url`: the url to your `iLO` interface
+  * `username`: the username used to log in to your `iLO` interface
+  * `password`: the password used to log in to your `iLO` interface
+
+```yaml
+username: username
+password: password
+module:
+    hostname: server.home # can also be an ip address
+    url: ilo.home
+    username: ilo_username
+    password: ilo_password
+```
+
+*❕ Note that the action performed to shut down the server simulates pressing the power button. It is therefore up to you to ensure that pressing the power button on your server will shut it down gracefully.*
+
+For security reasons, it is recommended to create a specific `iLO` user with the sole permission to switch the server on and off.
+
+Under `Administration` > `User Administration`, create a new user and check only the `Virtual Power and Reset` permission.
+
+<p align="center">
+  <img src="assets/ilo-user-permissions.png" alt="Logo" width="320">
+</p>
+
+#### `wol` configuration
+
+Two additional parameters must be defined for this module:
+  * `hostname`: use to ping your server
+  * `mac`: your server's mac address
+
+```yaml
+username: username
+password: password
+module:
+    hostname: server.home # can also be an ip address
+    mac: "42:42:42:42:42:42"
+```
+
+---
+
+Once the configuration is complete, you need to install the web application as a daemon.
+
+```shell
+cp power /usr/local/bin
+mkdir /etc/power.d
+cp config.yaml /etc/power.d
+PORT=8080 USER=your_user GROUP=your_group envsubst < power@.service > /etc/systemd/system/power@.service
+```
+
+*❗️ You'll need to choose which rights and permissions to set, depending on the user you choose. Of course, running the web application as root is not recommended.*
+
+If you want to use ports below `1024` for the web application when running it with a non-root user, you need to add capacity to it. The capability we need to add is `CAP_NET_BIND_SERVICE`, which is explicitly defined as the capacity for an executable to bind to a port less than `1024`.
+
+You need to be root to do that, so first, be root. Then, add the capability to the `power` binary:
+
+```shell
+setcap cap_net_bind_service=+ep /usr/local/bin/power
+```
+
+You can check that the capability has been added with:
+
+```shell
+getcap /usr/local/bin/power
+```
+
+And use setcap again, to remove the capability:
+
+ ```shell
+ setcap cap_net_bind_service=-ep /usr/local/bin/wakeup
+ ```
+
+*❗️ With this setup, any nonprivileged user can now run `power` on privileged ports. So, be very careful about what you do. Additionally, you can further restrict execution of the `power` binary, either using standard credentials (chmod, chown et al) or, even better, ACLs.*
+
+Another method is to redirect traffic from port 80 to port 8080 using NAT, but this will not be covered here.
+
+Once all the files have been copied, you can activate and start the service corresponding to the desired module.
+
+For the `ilo` module:
+
+```shell
+systemctl enable power@ilo.service
+systemctl start power@ilo.service
+```
+
+For the `wol` module:
+
+```shell
+systemctl enable power@wol.service
+systemctl start power@wol.service
+```
+
+Finally, all you have to do now is open your browser, type in the address corresponding to the `power` application, and start your server by pressing the button with all your might 👊
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- USAGE EXAMPLES -->
+## Usage
+
+<div align="center">
+  <img src="assets/button-states.png" alt="Button states" width="500">
+</div>
+
+Depending on the module used, the server status display may differ.
+
+In fact, the `ilo` module only displays a green LED if the server responds to an ICMP request (ping), and the button is alight from the moment the server is switched on, whether or not it responds to the ICMP request.
+
+On the other hand, the wol module displays the green LED and turns on the button light only when the server responds to an ICMP request (ping).
+
+If an error occurs when you press the button, it will turn red and you can view the logs with the following command:
+
+```shell
+sudo journalctl -u power@my_module.service
+```
+
+*❕ As the page is not reactive, it must be reloaded to update and view the current server state.*
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- CONTRIBUTING -->
+## Contributing
+
+This project has been designed to easily add internal modules. Just make sure it meets a generic need and not a personal one. For example, creating a module for executing command lines could be a good starting point.
+
+So don't hesitate to launch a pull request to create a module that could be useful to the community.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- ENHANCEMENTS -->
+## Enhancements
+
+The possibility of adding external modules via the [go-plugin](https://github.com/hashicorp/go-plugin) library or a shared library could be an interesting idea.
+
+Feel free to open issues to suggest improvements.
+
+
+
+<!-- LICENSE -->
+## License
+
+Distributed under the MIT License. See `LICENSE.txt` for more information.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- CREDITS -->
+## Credits
+
+* Thanks to the author of this [article](https://www.hongkiat.com/blog/css3-on-off-button/) on [Hongkiat](https://www.hongkiat.com/blog/) for the button design
+* [Power icons created by Uniconlabs - Flaticon](https://www.flaticon.com/free-icons/power)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>

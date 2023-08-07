@@ -1,0 +1,19 @@
+[Unit]
+Description=All-in-one tool for remote server power control
+After=network.target
+
+[Service]
+Environment="GIN_MODE=release"
+Environment="PORT=${PORT}"
+
+User=${USER}
+Group=${GROUP}
+
+Type=simple
+ExecStart=/usr/local/bin/power -m %i
+
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
