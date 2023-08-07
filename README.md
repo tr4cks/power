@@ -3,21 +3,6 @@
 
 
 
-<!-- STYLE -->
-<style>
-.shiny--green {
-    color: rgb(135,187,83);
-    text-shadow: 0px 0px 3px rgba(135,187,83,0.5);
-}
-
-.shiny--white {
-    color: white;
-    text-shadow: 0px 0px 3px rgb(250,250,250);
-}
-</style>
-
-
-
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
@@ -25,9 +10,7 @@
     <img src="assets/header.png" alt="Logo" width="320">
   </a>
 
-  <h3 align="center">
-    <span class="shiny--green">Power</span><span style="font-size: 30px;"> 🦸‍♀️ </span><span class="shiny--white">One click, One button</span>
-  </h3>
+  <h3 align="center">Power 🦸‍♀️ One click, One button</h3>
 
   <p align="center">
     All-in-one tool for remote server power control
