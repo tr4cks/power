@@ -216,7 +216,7 @@ Depending on the module used, the server status display may differ.
 
 In fact, the `ilo` module only displays a green LED if the server responds to an ICMP request (ping), and the button is alight from the moment the server is switched on, whether or not it responds to the ICMP request.
 
-On the other hand, the wol module displays the green LED and turns on the button light only when the server responds to an ICMP request (ping).
+On the other hand, the `wol` module displays the green LED and turns on the button light only when the server responds to an ICMP request (ping).
 
 If an error occurs when you press the button, it will turn red and you can view the logs with the following command:
 
