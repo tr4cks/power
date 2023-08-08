@@ -15,7 +15,11 @@ html, body, main {
 	width: 500px;
 	height: 500px;
 	background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 50%);
-	z-index: -5;
+}
+
+form {
+	position: relative;
+	z-index: 1;
 }
 
 .center {
