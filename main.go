@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -22,9 +23,9 @@ import (
 )
 
 func init() {
-	rootCmd.Flags().StringVar(&configFilePath, "config", path.Join("/opt", appName, "config.yaml"), "YAML configuration file")
-	rootCmd.Flags().StringVarP(&moduleName, "module", "m", "", "module for switching the server on or off")
-	rootCmd.MarkFlagRequired("module")
+	rootCmd.PersistentFlags().StringVar(&configFilePath, "config", path.Join("/etc", fmt.Sprintf("%s.d", appName), "config.yaml"), "YAML configuration file")
+	rootCmd.PersistentFlags().StringVarP(&moduleName, "module", "m", "", "module for switching the server on or off")
+	rootCmd.MarkPersistentFlagRequired("module")
 }
 
 const appName = "power"
@@ -35,7 +36,7 @@ var (
 	rootCmd        = &cobra.Command{
 		Use:     appName,
 		Short:   "All-in-one tool for remote server power control",
-		Version: "1.0.0",
+		Version: "1.1.0",
 		Args:    cobra.NoArgs,
 		Run:     run,
 		CompletionOptions: cobra.CompletionOptions{
@@ -65,7 +66,7 @@ func parseYAMLFile(filePath string) (*Config, error) {
 	return &config, nil
 }
 
-func run(cmd *cobra.Command, args []string) {
+func parseConfigFile(filePath string) *Config {
 	config, err := parseYAMLFile(configFilePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to parse YAML file %q: %s\n", configFilePath, err)
@@ -79,6 +80,10 @@ func run(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	return config
+}
+
+func createModule(config *Config, moduleName string) modules.Module {
 	internalModules := map[string]modules.Module{
 		"ilo": ilo.New(),
 		"wol": wakeonlan.New(),
@@ -94,12 +99,18 @@ func run(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	err = module.Init(config.Module)
+	err := module.Init(config.Module)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error during module initialization: %s\n", err)
 		os.Exit(1)
-		return
 	}
+
+	return module
+}
+
+func run(cmd *cobra.Command, args []string) {
+	config := parseConfigFile(configFilePath)
+	module := createModule(config, moduleName)
 
 	runServer(config, module)
 }
@@ -172,6 +183,68 @@ func runServer(config *Config, module modules.Module) {
 
 	router.Run()
 }
+
+func init() {
+	rootCmd.AddCommand(upCmd, downCmd, stateCmd)
+}
+
+var (
+	upCmd = &cobra.Command{
+		Use:   "up",
+		Short: "Start the server",
+		Run: func(cmd *cobra.Command, args []string) {
+			config := parseConfigFile(configFilePath)
+			module := createModule(config, moduleName)
+
+			module.PowerOn()
+		},
+	}
+	downCmd = &cobra.Command{
+		Use:   "down",
+		Short: "Turn off the server",
+		Run: func(cmd *cobra.Command, args []string) {
+			config := parseConfigFile(configFilePath)
+			module := createModule(config, moduleName)
+
+			module.PowerOff()
+		},
+	}
+	stateCmd = &cobra.Command{
+		Use:   "state",
+		Short: "Fetch the server state",
+		Run: func(cmd *cobra.Command, args []string) {
+			config := parseConfigFile(configFilePath)
+			module := createModule(config, moduleName)
+
+			powerState, ledState := module.State()
+
+			if powerState.Err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to retrieve POWER state: %s\n", powerState.Err)
+				os.Exit(1)
+			}
+			if ledState.Err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to retrieve LED state: %s\n", powerState.Err)
+				os.Exit(1)
+			}
+
+			state := struct {
+				Power bool `json:"power"`
+				Led   bool `json:"led"`
+			}{
+				Power: powerState.Value,
+				Led:   ledState.Value,
+			}
+
+			jsonString, err := json.Marshal(state)
+			if err != nil {
+				fmt.Println("Error during JSON conversion:", err)
+				os.Exit(1)
+			}
+
+			fmt.Println(string(jsonString))
+		},
+	}
+)
 
 func main() {
 	err := rootCmd.Execute()

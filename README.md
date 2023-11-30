@@ -86,8 +86,9 @@ power -m wol --config config.yaml
 ```
 
 Currently, two modules are available:
-* `ilo`: use of HP iLO technology integrated into ProLiant range servers. This module enables the server to be switched on and off with a complete display of its status.
-* `wol`: use Wake-on-LAN to start the server. This module only allows the server to be started, and has a restricted display of the server status.
+  * `ilo`: use of HP iLO technology integrated into ProLiant range servers. This module enables the server to be switched on and off with a complete display of its status.
+  * `wol`: use Wake-on-LAN to start the server. This module only allows the server to be started, and has a restricted display of
+  the server status.
 
 *❗️ The `ilo` module has only been implemented and tested based on the `iLO4` API, and is therefore probably not compatible with other major versions. Don't hesitate to start an issue or a pull request if you're interested in other versions.*
 
@@ -205,7 +206,7 @@ Finally, all you have to do now is open your browser, type in the address corres
 
 
 
-<!-- USAGE EXAMPLES -->
+<!-- USAGE -->
 ## Usage
 
 <div align="center">
@@ -225,6 +226,29 @@ sudo journalctl -u power@my_module.service
 ```
 
 *❕ As the page is not reactive, it must be reloaded to update and view the current server state.*
+
+---
+
+It is also possible to use this tool from the command line. There's no point in instantiating it as a daemon if you only want to use it that way.
+
+Three commands are available:
+* `up`: starts the server
+* `down`: turns off the server
+* `state`: provides server status in JSON format
+
+Since the `ilo` module simulates the pressing of the power button, regardless of whether it is to switch the server on or off, it is advisable to check the status of the server before carrying out such an operation.
+
+For example, if you want to create an entry in your `crontab` to start the server while checking that it's not already running, you can use the following command:
+
+```crontab
+SHELL=/bin/bash
+
+0 20 * * * [ "$(power -m ilo state | jq -r '.power == false and .led == false')" = "true" ] && power -m ilo up
+```
+
+*❕ The previous command requires the `jq` utility to run.*
+
+Concerning the `wol` module, as mentioned earlier, it does not allow you to shut down the server, so the `down` command will have no effect.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
