@@ -177,7 +177,7 @@ getcap /usr/local/bin/power
 And use setcap again, to remove the capability:
 
  ```shell
- setcap cap_net_bind_service=-ep /usr/local/bin/wakeup
+ setcap cap_net_bind_service=-ep /usr/local/bin/power
  ```
 
 *❗️ With this setup, any nonprivileged user can now run `power` on privileged ports. So, be very careful about what you do. Additionally, you can further restrict execution of the `power` binary, either using standard credentials (chmod, chown et al) or, even better, ACLs.*
