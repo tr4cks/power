@@ -20,5 +20,6 @@
 # Go workspace file
 go.work
 
+/out/
 /config.yml
 /power
