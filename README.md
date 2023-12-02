@@ -243,7 +243,7 @@ For example, if you want to create an entry in your `crontab` to start the serve
 ```crontab
 SHELL=/bin/bash
 
-0 20 * * * [ "$(power -m ilo state | jq -r '.power == false and .led == false')" = "true" ] && power -m ilo up
+0 20 * * * [ "$(/usr/local/bin/power -m ilo state | jq -r '.power == false and .led == false')" = "true" ] && /usr/local/bin/power -m ilo up
 ```
 
 *❕ The previous command requires the `jq` utility to run.*
