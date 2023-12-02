@@ -43,8 +43,10 @@ for arch in "${architectures[@]}"; do
 
     # Add the checksum to the checksums.txt file
     echo "$checksum *$binary_name" >> "$checksums_file"
+
+    # Save the original output of sha256sum to a .sha256 file
+    (cd "$output_dir" && sha256sum "$binary_name" > "$binary_name.sha256")
 done
 
 # Display a message indicating that the process is complete
-echo "Binaries successfully generated in the $output_dir directory."
-echo "Checksums saved in the $checksums_file file."
+echo "Binaries, checksum files, and checksums.txt successfully generated in the $output_dir directory."
