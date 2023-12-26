@@ -252,7 +252,7 @@ Concerning the `wol` module, as mentioned earlier, it does not allow you to shut
 
 ### API
 
-An api is available to create shortcuts easily on iOS, for example.
+An api is available to create `shortcuts` easily on `iOS`, for example.
 
 Three routes are available:
 
@@ -260,11 +260,11 @@ Three routes are available:
 
 This endpoint is used to start the server.
 
-**Method:** POST
+**Method:** `POST`
 
 **Response on success:**
 
-Status code: 200
+Status code: `200`
 
 Body:
 
@@ -276,7 +276,7 @@ Body:
 
 **Response on error:**
 
-Status code: 500
+Status code: `500`
 
 Body:
 
@@ -291,13 +291,13 @@ Body:
 
 This endpoint is used to shutdown the server.
 
-This route requires authentication using Basic Auth. For information on how to use Basic Auth, please refer to this [documentation](https://en.wikipedia.org/wiki/Basic_access_authentication).
+This route requires authentication using `Basic Auth`. For information on how to use `Basic Auth`, please refer to this [documentation](https://en.wikipedia.org/wiki/Basic_access_authentication).
 
-**Method:** POST
+**Method:** `POST`
 
 **Response on success:**
 
-Status code: 200
+Status code: `200`
 
 Body:
 
@@ -309,7 +309,7 @@ Body:
 
 **Response on error:**
 
-Status code: 500
+Status code: `500`
 
 Body:
 
@@ -325,11 +325,11 @@ Body:
 
 This endpoint is used to retrieve the server state.
 
-**Method:** GET
+**Method:** `GET`
 
 **Response on success:**
 
-Status code: 200
+Status code: `200`
 
 Body:
 
