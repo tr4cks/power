@@ -227,14 +227,14 @@ sudo journalctl -u power@my_module.service
 
 *❕ As the page is not reactive, it must be reloaded to update and view the current server state.*
 
----
+### Command Line
 
 It is also possible to use this tool from the command line. There's no point in instantiating it as a daemon if you only want to use it that way.
 
 Three commands are available:
-* `up`: starts the server
-* `down`: turns off the server
-* `state`: provides server status in JSON format
+  * `up`: starts the server
+  * `down`: turns off the server
+  * `state`: provides server status in JSON format
 
 Since the `ilo` module simulates the pressing of the power button, regardless of whether it is to switch the server on or off, it is advisable to check the status of the server before carrying out such an operation.
 
@@ -243,10 +243,106 @@ For example, if you want to create an entry in your `crontab` to start the serve
 ```crontab
 SHELL=/bin/bash
 
-0 20 * * * [ "$(/usr/local/bin/power -m ilo state | jq -r '.power == false and .led == false')" = "true" ] && /usr/local/bin/power -m ilo up
+0 20 * * * [ "$(/usr/local/bin/power -m ilo state 2> /dev/null | jq -r '.power == false and .led == false')" = "true" ] && /usr/local/bin/power -m ilo up
 ```
 
 *❕ The previous command requires the `jq` utility to run.*
+
+Concerning the `wol` module, as mentioned earlier, it does not allow you to shut down the server, so the `down` command will have no effect.
+
+### API
+
+An api is available to create shortcuts easily on iOS, for example.
+
+Three routes are available:
+
+#### `/api/up`
+
+This endpoint is used to start the server.
+
+**Method:** POST
+
+**Response on success:**
+
+Status code: 200
+
+Body:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+**Response on error:**
+
+Status code: 500
+
+Body:
+
+```json
+{
+  "status": "ko",
+  "error": "..."
+}
+```
+
+#### `/api/down`
+
+This endpoint is used to shutdown the server.
+
+This route requires authentication using Basic Auth. For information on how to use Basic Auth, please refer to this [documentation](https://en.wikipedia.org/wiki/Basic_access_authentication).
+
+**Method:** POST
+
+**Response on success:**
+
+Status code: 200
+
+Body:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+**Response on error:**
+
+Status code: 500
+
+Body:
+
+```json
+{
+  "status": "ko",
+  "error": "..."
+}
+```
+
+
+#### `/api/state`
+
+This endpoint is used to retrieve the server state.
+
+**Method:** GET
+
+**Response on success:**
+
+Status code: 200
+
+Body:
+
+```json
+{
+  "power": true,
+  "led": true
+}
+```
+
+---
+
+Since the `ilo` module simulates the pressing of the power button, regardless of whether it is to switch the server on or off, it is advisable to check the status of the server before carrying out such an operation.
 
 Concerning the `wol` module, as mentioned earlier, it does not allow you to shut down the server, so the `down` command will have no effect.
 
