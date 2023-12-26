@@ -28,22 +28,18 @@ func Ping(addr string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("error creating new pinger: %w", err)
 	}
-	pinger.Interval, err = time.ParseDuration("0.167s")
-	if err != nil {
-		return false, fmt.Errorf("error parsing duration: %w", err)
-	}
-	pinger.Timeout, err = time.ParseDuration("0.5s")
-	if err != nil {
-		return false, fmt.Errorf("error parsing duration: %w", err)
-	}
-	pinger.OnRecv = func(pkt *probing.Packet) {
-		pinger.Stop()
-	}
+	pinger.Count = 1
+	pinger.Timeout = 500 * time.Millisecond
 	err = pinger.Run()
 	if err != nil {
 		return false, fmt.Errorf("error sending ping: %w", err)
 	}
-	return pinger.PacketsRecv > 0, nil
+	stats := pinger.Statistics()
+	if stats.PacketLoss > 0 {
+		return false, nil
+	} else {
+		return true, nil
+	}
 }
 
 func Validate[T any](input map[string]interface{}, output *T) error {
