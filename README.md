@@ -43,7 +43,14 @@
         </li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
+    <li>
+      <a href="#usage">Usage</a>
+      <ul>
+        <li><a href="#gui">GUI</a></li>
+        <li><a href="#command-line">Command Line</a></li>
+        <li><a href="#api">API</a></li>
+      </ul>
+    </li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#enhancements">Enhancements</a></li>
     <li><a href="#license">License</a></li>
@@ -208,6 +215,8 @@ Finally, all you have to do now is open your browser, type in the address corres
 
 <!-- USAGE -->
 ## Usage
+
+### GUI
 
 <div align="center">
   <img src="assets/button-states.png" alt="Button states" width="500">
