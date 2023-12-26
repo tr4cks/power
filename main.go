@@ -36,7 +36,7 @@ var (
 	rootCmd        = &cobra.Command{
 		Use:     appName,
 		Short:   "All-in-one tool for remote server power control",
-		Version: "1.1.0",
+		Version: "1.2.0",
 		Args:    cobra.NoArgs,
 		Run:     run,
 		CompletionOptions: cobra.CompletionOptions{
@@ -156,7 +156,7 @@ func runServer(config *Config, module modules.Module) {
 				if c.GetBool("power") {
 					err := module.PowerOff()
 					if err != nil {
-						logErr.Printf("Server power-up error: %s", err)
+						logErr.Printf("Server shutdown error: %s", err)
 						c.HTML(http.StatusOK, "index.html", gin.H{
 							"power": c.GetBool("power"),
 							"led":   c.GetBool("led"),
@@ -167,7 +167,7 @@ func runServer(config *Config, module modules.Module) {
 				} else {
 					err := module.PowerOn()
 					if err != nil {
-						logErr.Printf("Server shutdown error: %s", err)
+						logErr.Printf("Server power-up error: %s", err)
 						c.HTML(http.StatusOK, "index.html", gin.H{
 							"power": c.GetBool("power"),
 							"led":   c.GetBool("led"),
@@ -179,6 +179,50 @@ func runServer(config *Config, module modules.Module) {
 
 				c.Redirect(http.StatusFound, "/")
 			})
+	}
+
+	api := router.Group("/api")
+	{
+		api.POST("/up", func(c *gin.Context) {
+			err := module.PowerOn()
+
+			if err != nil {
+				logErr.Printf("Server power-up error: %s", err)
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"status": "ko",
+					"error":  "a problem occurred during server startup",
+				})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"status": "ok",
+			})
+		})
+
+		api.POST("/down", gin.BasicAuth(gin.Accounts{config.Username: config.Password}), func(c *gin.Context) {
+			err := module.PowerOff()
+
+			if err != nil {
+				logErr.Printf("Server shutdown error: %s", err)
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"status": "ko",
+					"error":  "a problem occurred during server shutdown",
+				})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"status": "ok",
+			})
+		})
+
+		api.GET("/state", ServerStateMiddleware(module, logErr), func(c *gin.Context) {
+			c.JSON(200, gin.H{
+				"power": c.GetBool("power"),
+				"led":   c.GetBool("led"),
+			})
+		})
 	}
 
 	router.Run()
@@ -196,7 +240,12 @@ var (
 			config := parseConfigFile(configFilePath)
 			module := createModule(config, moduleName)
 
-			module.PowerOn()
+			err := module.PowerOn()
+
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Server power-up error: %s\n", err)
+				os.Exit(1)
+			}
 		},
 	}
 	downCmd = &cobra.Command{
@@ -206,7 +255,12 @@ var (
 			config := parseConfigFile(configFilePath)
 			module := createModule(config, moduleName)
 
-			module.PowerOff()
+			err := module.PowerOff()
+
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Server shutdown error: %s\n", err)
+				os.Exit(1)
+			}
 		},
 	}
 	stateCmd = &cobra.Command{
@@ -220,11 +274,9 @@ var (
 
 			if powerState.Err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to retrieve POWER state: %s\n", powerState.Err)
-				os.Exit(1)
 			}
 			if ledState.Err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to retrieve LED state: %s\n", powerState.Err)
-				os.Exit(1)
+				fmt.Fprintf(os.Stderr, "Failed to retrieve LED state: %s\n", ledState.Err)
 			}
 
 			state := struct {
