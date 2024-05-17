@@ -67,9 +67,9 @@ func parseYAMLFile(filePath string) (*Config, error) {
 }
 
 func parseConfigFile(filePath string) *Config {
-	config, err := parseYAMLFile(configFilePath)
+	config, err := parseYAMLFile(filePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse YAML file %q: %s\n", configFilePath, err)
+		fmt.Fprintf(os.Stderr, "Failed to parse YAML file %q: %s\n", filePath, err)
 		os.Exit(1)
 	}
 
