@@ -1,22 +1,21 @@
 package main
 
 import (
-	"log"
-
+	"github.com/rs/zerolog"
 	"github.com/tr4cks/power/modules"
 
 	"github.com/gin-gonic/gin"
 )
 
-func ServerStateMiddleware(module modules.Module, logErr *log.Logger) gin.HandlerFunc {
+func ServerStateMiddleware(module modules.Module, logger *zerolog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		powerState, ledState := module.State()
 
 		if powerState.Err != nil {
-			logErr.Printf("Failed to retrieve POWER state: %s", powerState.Err)
+			logger.Error().Err(powerState.Err).Msg("Failed to retrieve POWER state")
 		}
 		if ledState.Err != nil {
-			logErr.Printf("Failed to retrieve LED state: %s", ledState.Err)
+			logger.Error().Err(ledState.Err).Msg("Failed to retrieve LED state")
 		}
 
 		c.Set("power", powerState.Value)

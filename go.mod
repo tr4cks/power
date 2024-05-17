@@ -8,6 +8,7 @@ require (
 	github.com/linde12/gowol v0.0.0-20180926075039-797e4d01634c
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus-community/pro-bing v0.4.0
+	github.com/rs/zerolog v1.32.0
 	github.com/spf13/cobra v1.8.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -27,6 +28,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

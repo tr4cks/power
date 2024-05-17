@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
 	"path"
 	"strings"
+	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/tr4cks/power/modules"
 	"github.com/tr4cks/power/modules/ilo"
 	"github.com/tr4cks/power/modules/wakeonlan"
@@ -121,24 +123,74 @@ var templateFS embed.FS
 //go:embed static
 var staticFS embed.FS
 
+// loggers
+var (
+	ginLogger  zerolog.Logger
+	mainLogger zerolog.Logger
+)
+
+func configureLoggers() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	var outputWriter io.Writer = os.Stderr
+	if gin.Mode() != "release" {
+		outputWriter = zerolog.ConsoleWriter{Out: os.Stderr}
+	}
+	logger := zerolog.New(outputWriter).With().Timestamp().Logger()
+	ginLogger = logger.With().Str("scope", "gin").Logger()
+	mainLogger = logger.With().Str("scope", "main").Logger()
+}
+
+func loggerWithZerolog(logger *zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		raw := c.Request.URL.RawQuery
+
+		c.Next()
+
+		latency := time.Since(start)
+
+		if raw != "" {
+			path = path + "?" + raw
+		}
+
+		errorMessage := c.Errors.ByType(gin.ErrorTypePrivate).String()
+		event := logger.Info()
+		if errorMessage != "" {
+			event = logger.Error()
+		}
+
+		event.
+			Str("client_ip", c.ClientIP()).
+			Str("method", c.Request.Method).
+			Str("path", path).
+			Int("status", c.Writer.Status()).
+			Int("size", c.Writer.Size()).
+			Dur("latency", latency).
+			Msg(errorMessage)
+	}
+}
+
 func runServer(config *Config, module modules.Module) {
 	// Configure Gin
-	router := gin.Default()
+	router := gin.New()
+	router.Use(loggerWithZerolog(&ginLogger))
+	router.Use(gin.Recovery())
 	router.SetTrustedProxies(nil)
 	html := template.Must(template.ParseFS(templateFS, "index.html"))
 	router.SetHTMLTemplate(html)
 
 	// Logging
-	logErr := log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
+	configureLoggers()
 
 	// Serve static folder
 	staticSubtreeFS, err := fs.Sub(staticFS, "static")
 	if err != nil {
-		log.Fatal(err)
+		mainLogger.Fatal().Err(err)
 	}
 	router.StaticFS("/static", http.FS(staticSubtreeFS))
 
-	withServerState := router.Group("/", ServerStateMiddleware(module, logErr))
+	withServerState := router.Group("/", ServerStateMiddleware(module, &mainLogger))
 	{
 		// GET index.html
 		withServerState.GET("/", func(c *gin.Context) {
@@ -156,7 +208,7 @@ func runServer(config *Config, module modules.Module) {
 				if c.GetBool("power") {
 					err := module.PowerOff()
 					if err != nil {
-						logErr.Printf("Server shutdown error: %s", err)
+						mainLogger.Error().Err(err).Msg("Server shutdown error")
 						c.HTML(http.StatusOK, "index.html", gin.H{
 							"power": c.GetBool("power"),
 							"led":   c.GetBool("led"),
@@ -167,7 +219,7 @@ func runServer(config *Config, module modules.Module) {
 				} else {
 					err := module.PowerOn()
 					if err != nil {
-						logErr.Printf("Server power-up error: %s", err)
+						mainLogger.Error().Err(err).Msg("Server power-up error")
 						c.HTML(http.StatusOK, "index.html", gin.H{
 							"power": c.GetBool("power"),
 							"led":   c.GetBool("led"),
@@ -187,7 +239,7 @@ func runServer(config *Config, module modules.Module) {
 			err := module.PowerOn()
 
 			if err != nil {
-				logErr.Printf("Server power-up error: %s", err)
+				mainLogger.Error().Err(err).Msg("Server power-up error")
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"status": "ko",
 					"error":  "a problem occurred during server startup",
@@ -204,7 +256,7 @@ func runServer(config *Config, module modules.Module) {
 			err := module.PowerOff()
 
 			if err != nil {
-				logErr.Printf("Server shutdown error: %s", err)
+				mainLogger.Error().Err(err).Msg("Server shutdown error")
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"status": "ko",
 					"error":  "a problem occurred during server shutdown",
@@ -217,7 +269,7 @@ func runServer(config *Config, module modules.Module) {
 			})
 		})
 
-		api.GET("/state", ServerStateMiddleware(module, logErr), func(c *gin.Context) {
+		api.GET("/state", ServerStateMiddleware(module, &mainLogger), func(c *gin.Context) {
 			c.JSON(200, gin.H{
 				"power": c.GetBool("power"),
 				"led":   c.GetBool("led"),
