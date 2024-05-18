@@ -49,6 +49,7 @@
         <li><a href="#gui">GUI</a></li>
         <li><a href="#command-line">Command Line</a></li>
         <li><a href="#api">API</a></li>
+        <li><a href="#discord">Discord</a></li>
       </ul>
     </li>
     <li><a href="#contributing">Contributing</a></li>
@@ -354,6 +355,16 @@ Body:
 Since the `ilo` module simulates the pressing of the power button, regardless of whether it is to switch the server on or off, it is advisable to check the status of the server before carrying out such an operation.
 
 Concerning the `wol` module, as mentioned earlier, it does not allow you to shut down the server, so the `down` command will have no effect.
+
+### Discord
+
+In addition to the http server, you can also activate a discord bot to switch on the server with a command from discord, simply by adding the following fields to the configuration file:
+
+```yaml
+discord:
+  bot-token: your_bot_token
+  guild-id: "your_guild_id" # optional
+```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

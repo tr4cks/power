@@ -137,7 +137,7 @@ func (d *DiscordBot) powerOnHandler(s *discordgo.Session, i *discordgo.Interacti
 
 var commands = []*discordgo.ApplicationCommand{
 	{
-		Name:        "power-on",
+		Name:        "power_on",
 		Description: "Turns the server on",
 	},
 }
@@ -162,7 +162,7 @@ func NewDiscordBot(config *DiscordBotConfig, module modules.Module) (*DiscordBot
 	bot := &DiscordBot{config, module, logger, session, nil}
 
 	commandHandlers := map[string]func(*discordgo.Session, *discordgo.InteractionCreate){
-		"power-on": bot.powerOnHandler,
+		"power_on": bot.powerOnHandler,
 	}
 
 	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
