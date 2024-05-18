@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -9,8 +10,10 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -111,10 +114,33 @@ func createModule(config *Config, moduleName string) modules.Module {
 }
 
 func run(cmd *cobra.Command, args []string) {
+	// Logging
+	configureLoggers()
+
 	config := parseConfigFile(configFilePath)
 	module := createModule(config, moduleName)
 
-	runServer(config, module)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	srv := runHttpServer(config, module)
+
+	// Listen for the interrupt signal.
+	<-ctx.Done()
+
+	// Restore default behavior on the interrupt signal and notify user of shutdown.
+	stop()
+	mainLogger.Info().Msg("Shutting down gracefully, press Ctrl+C again to force")
+
+	// The context is used to inform the server it has 5 seconds to finish
+	// the request it is currently handling
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		mainLogger.Fatal().Err(err).Msg("Server forced to shutdown")
+	}
+
+	mainLogger.Info().Msg("Server exiting")
 }
 
 //go:embed index.html
@@ -128,6 +154,20 @@ var (
 	ginLogger  zerolog.Logger
 	mainLogger zerolog.Logger
 )
+
+func resolveAddress() string {
+	port := os.Getenv("PORT")
+	if port != "" {
+		mainLogger.
+			Debug().
+			Msg(fmt.Sprintf("Environment variable PORT=\"%s\"", port))
+		return ":" + port
+	}
+	mainLogger.
+		Debug().
+		Msg("Environment variable PORT is undefined. Using port :8080 by default")
+	return ":8080"
+}
 
 func configureLoggers() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -171,7 +211,7 @@ func loggerWithZerolog(logger *zerolog.Logger) gin.HandlerFunc {
 	}
 }
 
-func runServer(config *Config, module modules.Module) {
+func runHttpServer(config *Config, module modules.Module) *http.Server {
 	// Configure Gin
 	router := gin.New()
 	router.Use(loggerWithZerolog(&ginLogger))
@@ -179,9 +219,6 @@ func runServer(config *Config, module modules.Module) {
 	router.SetTrustedProxies(nil)
 	html := template.Must(template.ParseFS(templateFS, "index.html"))
 	router.SetHTMLTemplate(html)
-
-	// Logging
-	configureLoggers()
 
 	// Serve static folder
 	staticSubtreeFS, err := fs.Sub(staticFS, "static")
@@ -277,7 +314,19 @@ func runServer(config *Config, module modules.Module) {
 		})
 	}
 
-	router.Run()
+	srv := &http.Server{
+		Addr:    resolveAddress(),
+		Handler: router,
+	}
+
+	go func() {
+		err := srv.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			mainLogger.Fatal().Err(err).Msg("An error occurred while starting the server")
+		}
+	}()
+
+	return srv
 }
 
 func init() {
