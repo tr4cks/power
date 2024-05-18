@@ -54,6 +54,7 @@ type Config struct {
 	Username string `validate:"required"`
 	Password string `validate:"required"`
 	Module   map[string]interface{}
+	Discord  *DiscordBotConfig
 }
 
 func parseYAMLFile(filePath string) (*Config, error) {
@@ -124,6 +125,18 @@ func run(cmd *cobra.Command, args []string) {
 	defer stop()
 
 	srv := runHttpServer(config, module)
+
+	if config.Discord != nil {
+		discordBot, err := NewDiscordBot(config.Discord, module)
+		if err != nil {
+			mainLogger.Fatal().Err(err).Msg("Unable to create discord bot")
+		}
+		err = discordBot.Start()
+		if err != nil {
+			mainLogger.Fatal().Err(err).Msg("Unable to start discord bot")
+		}
+		defer discordBot.Stop()
+	}
 
 	// Listen for the interrupt signal.
 	<-ctx.Done()
