@@ -66,6 +66,59 @@ func (d *DiscordBot) Stop() {
 	d.logger.Info().Msg("Gracefully shutting down")
 }
 
+func (d *DiscordBot) serverStatusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	logger := d.logger.With().Str("username", i.Member.User.Username).Logger()
+	logger.Info().Msg("A user tries to check the server status")
+
+	powerState, ledState := d.module.State()
+
+	defer func() {
+		time.Sleep(10 * time.Second)
+		s.InteractionResponseDelete(i.Interaction)
+	}()
+
+	if powerState.Err != nil {
+		logger.Error().Err(powerState.Err).Msg("Failed to retrieve POWER state")
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Content: "A problem has occurred checking the server status",
+			},
+		})
+		return
+	}
+	if ledState.Err != nil {
+		logger.Error().Err(ledState.Err).Msg("Failed to retrieve LED state")
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Content: "A problem has occurred checking the server status",
+			},
+		})
+		return
+	}
+
+	if powerState.Value || ledState.Value {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Content: "Server is on",
+			},
+		})
+	} else {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Content: "Server is off",
+			},
+		})
+	}
+}
+
 func (d *DiscordBot) powerOnHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	logger := d.logger.With().Str("username", i.Member.User.Username).Logger()
 	logger.Info().Msg("A user attempts to switch on the server")
@@ -135,10 +188,87 @@ func (d *DiscordBot) powerOnHandler(s *discordgo.Session, i *discordgo.Interacti
 	})
 }
 
+func (d *DiscordBot) powerOffHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	logger := d.logger.With().Str("username", i.Member.User.Username).Logger()
+	logger.Info().Msg("A user attempts to switch off the server")
+
+	powerState, ledState := d.module.State()
+
+	defer func() {
+		time.Sleep(10 * time.Second)
+		s.InteractionResponseDelete(i.Interaction)
+	}()
+
+	if powerState.Err != nil {
+		logger.Error().Err(powerState.Err).Msg("Failed to retrieve POWER state")
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Content: "A problem occurred when switching off the server",
+			},
+		})
+		return
+	}
+	if ledState.Err != nil {
+		logger.Error().Err(ledState.Err).Msg("Failed to retrieve LED state")
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Content: "A problem occurred when switching off the server",
+			},
+		})
+		return
+	}
+
+	if !powerState.Value && !ledState.Value {
+		logger.Info().Msg("The server is already switched off")
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Content: "The server is already switched off",
+			},
+		})
+		return
+	}
+
+	err := d.module.PowerOff()
+	if err != nil {
+		logger.Error().Err(err).Msg("A problem occurred when switching off the server")
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Content: "A problem occurred when switching off the server",
+			},
+		})
+		return
+	}
+	logger.Info().Msg("Server switched off")
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Content: "The server turns off, give it some time...",
+		},
+	})
+}
+
 var commands = []*discordgo.ApplicationCommand{
+	{
+		Name:        "server_status",
+		Description: "Provides the current status of the server",
+	},
 	{
 		Name:        "power_on",
 		Description: "Turns the server on",
+	},
+	{
+		Name:        "power_off",
+		Description: "Turns the server off",
 	},
 }
 
@@ -162,7 +292,9 @@ func NewDiscordBot(config *DiscordBotConfig, module modules.Module) (*DiscordBot
 	bot := &DiscordBot{config, module, logger, session, nil}
 
 	commandHandlers := map[string]func(*discordgo.Session, *discordgo.InteractionCreate){
-		"power_on": bot.powerOnHandler,
+		"server_status": bot.serverStatusHandler,
+		"power_on":      bot.powerOnHandler,
+		"power_off":     bot.powerOffHandler,
 	}
 
 	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {

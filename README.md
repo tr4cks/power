@@ -358,13 +358,21 @@ Concerning the `wol` module, as mentioned earlier, it does not allow you to shut
 
 ### Discord
 
-In addition to the http server, you can also activate a discord bot to switch on the server with a command from discord, simply by adding the following fields to the configuration file:
+In addition to the HTTP server, you can also activate a Discord bot to manage the server with commands from Discord. The following commands are available:
+
+- `/server_status`: Provides the current status of the server.
+- `/power_on`: Turns the server on.
+- `/power_off`: Turns the server off.
+
+To enable this functionality, simply add the following fields to the configuration file:
 
 ```yaml
 discord:
   bot-token: your_bot_token
   guild-id: "your_guild_id" # optional
 ```
+
+*❗️ If you want to ensure that not everyone can turn off the server, do not forget to set the appropriate permissions on Discord.*
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
