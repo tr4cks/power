@@ -70,44 +70,62 @@ func (d *DiscordBot) powerOnHandler(s *discordgo.Session, i *discordgo.Interacti
 	logger := d.logger.With().Str("username", i.Member.User.Username).Logger()
 	logger.Info().Msg("A user attempts to switch on the server")
 
-	powerState, ledState := d.module.State()
+	var deferStack []func()
 
 	defer func() {
-		time.Sleep(10 * time.Second)
-		s.InteractionResponseDelete(i.Interaction)
+		if len(deferStack) > 0 {
+			time.Sleep(10 * time.Second)
+		}
+		for i := len(deferStack) - 1; i >= 0; i-- {
+			deferStack[i]()
+		}
 	}()
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Content: "Server startup in progress... Please wait",
+		},
+	})
+
+	deferStack = append(deferStack, func() {
+		s.InteractionResponseDelete(i.Interaction)
+	})
+
+	powerState, ledState := d.module.State()
 
 	if powerState.Err != nil {
 		logger.Error().Err(powerState.Err).Msg("Failed to retrieve POWER state")
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Flags:   discordgo.MessageFlagsEphemeral,
-				Content: "A problem occurred when switching on the server",
-			},
+		followupMsg, _ := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Content: "A problem occurred when switching on the server",
+		})
+		deferStack = append(deferStack, func() {
+			s.FollowupMessageDelete(i.Interaction, followupMsg.ID)
 		})
 		return
 	}
 	if ledState.Err != nil {
 		logger.Error().Err(ledState.Err).Msg("Failed to retrieve LED state")
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Flags:   discordgo.MessageFlagsEphemeral,
-				Content: "A problem occurred when switching on the server",
-			},
+		followupMsg, _ := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Content: "A problem occurred when switching on the server",
+		})
+		deferStack = append(deferStack, func() {
+			s.FollowupMessageDelete(i.Interaction, followupMsg.ID)
 		})
 		return
 	}
 
 	if powerState.Value || ledState.Value {
 		logger.Info().Msg("The server is already switched on")
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Flags:   discordgo.MessageFlagsEphemeral,
-				Content: "The server is already switched on",
-			},
+		followupMsg, _ := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Content: "The server is already switched on",
+		})
+		deferStack = append(deferStack, func() {
+			s.FollowupMessageDelete(i.Interaction, followupMsg.ID)
 		})
 		return
 	}
@@ -115,23 +133,23 @@ func (d *DiscordBot) powerOnHandler(s *discordgo.Session, i *discordgo.Interacti
 	err := d.module.PowerOn()
 	if err != nil {
 		logger.Error().Err(err).Msg("A problem occurred when switching on the server")
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Flags:   discordgo.MessageFlagsEphemeral,
-				Content: "A problem occurred when switching on the server",
-			},
+		followupMsg, _ := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Content: "A problem occurred when switching on the server",
+		})
+		deferStack = append(deferStack, func() {
+			s.FollowupMessageDelete(i.Interaction, followupMsg.ID)
 		})
 		return
 	}
 	logger.Info().Msg("Server switched on")
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Flags:   discordgo.MessageFlagsEphemeral,
-			Content: "The server turns on, give it some time...",
-		},
+	followupMsg, _ := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+		Flags:   discordgo.MessageFlagsEphemeral,
+		Content: "The server is now starting! This may take a few minutes",
+	})
+	deferStack = append(deferStack, func() {
+		s.FollowupMessageDelete(i.Interaction, followupMsg.ID)
 	})
 }
 

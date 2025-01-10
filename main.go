@@ -41,7 +41,7 @@ var (
 	rootCmd        = &cobra.Command{
 		Use:     appName,
 		Short:   "All-in-one tool for remote server power control",
-		Version: "1.3.0",
+		Version: "1.3.1",
 		Args:    cobra.NoArgs,
 		Run:     run,
 		CompletionOptions: cobra.CompletionOptions{
