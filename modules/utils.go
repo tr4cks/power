@@ -2,6 +2,9 @@ package modules
 
 import (
 	"fmt"
+	"net"
+	"os"
+	"syscall"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -23,6 +26,18 @@ func MakeAsync[R any](routine func() R) (func(), chan R) {
 	}, channel
 }
 
+func isNoRouteOrDownError(err error) bool {
+	opErr, ok := err.(*net.OpError)
+	if !ok {
+		return false
+	}
+	syscallErr, ok := opErr.Err.(*os.SyscallError)
+	if !ok {
+		return false
+	}
+	return syscallErr.Err == syscall.EHOSTUNREACH || syscallErr.Err == syscall.EHOSTDOWN
+}
+
 func Ping(addr string) (bool, error) {
 	pinger, err := probing.NewPinger(addr)
 	if err != nil {
@@ -32,14 +47,13 @@ func Ping(addr string) (bool, error) {
 	pinger.Timeout = 500 * time.Millisecond
 	err = pinger.Run()
 	if err != nil {
+		if isNoRouteOrDownError(err) {
+			return false, nil
+		}
 		return false, fmt.Errorf("error sending ping: %w", err)
 	}
 	stats := pinger.Statistics()
-	if stats.PacketLoss > 0 {
-		return false, nil
-	} else {
-		return true, nil
-	}
+	return stats.PacketsRecv > 0, nil
 }
 
 func Validate[T any](input map[string]interface{}, output *T) error {
