@@ -49,6 +49,7 @@
         <li><a href="#gui">GUI</a></li>
         <li><a href="#command-line">Command Line</a></li>
         <li><a href="#api">API</a></li>
+        <li><a href="#apple-shortcuts">Apple Shortcuts</a></li>
         <li><a href="#discord">Discord</a></li>
       </ul>
     </li>
