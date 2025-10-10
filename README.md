@@ -356,6 +356,19 @@ Since the `ilo` module simulates the pressing of the power button, regardless of
 
 Concerning the `wol` module, as mentioned earlier, it does not allow you to shut down the server, so the `down` command will have no effect.
 
+### Apple Shortcuts
+
+This project includes three Apple Shortcuts that let you easily control your **local server** from your iPhone, iPad, or Mac.
+
+| 🧩 Shortcut Name | 📝 Description | 🔗 Link |
+|-----------------------------|----------------|--------|
+| 🟢 **Power on the server** | Starts the local server | [Download](https://www.icloud.com/shortcuts/e32561b02b3142ab9f7ce60919442423) |
+| 🧠 **Server status** | Displays the current status of the local server (online or offline) | [Download](https://www.icloud.com/shortcuts/7627ba326db344daa3ee3f20e03620c0) |
+| 🔴 **Power off the server** | Gracefully shuts down the local server | [Download](https://www.icloud.com/shortcuts/edeaa53c4f564ab181d4558aa716375b) |
+
+> 💡 These shortcuts rely on the **power’s API** to work.  
+> Each action sends an HTTP request to the API.
+
 ### Discord
 
 In addition to the HTTP server, you can also activate a Discord bot to manage the server with commands from Discord. The following commands are available:
