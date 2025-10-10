@@ -372,7 +372,7 @@ discord:
   guild-id: "your_guild_id" # optional
 ```
 
-*❗️ If you want to ensure that not everyone can turn off the server, do not forget to set the appropriate permissions on Discord.*
+*❗️ To shut down the server, you must be a Discord server administrator.*
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
