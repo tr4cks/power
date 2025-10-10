@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gin-gonic/gin"
@@ -24,6 +26,7 @@ type DiscordBot struct {
 type DiscordBotConfig struct {
 	BotToken string `yaml:"bot-token" validate:"required"`
 	GuildId  string `yaml:"guild-id"`
+	CuteDMs  bool   `yaml:"cute-dms"`
 }
 
 func (d *DiscordBot) Start() error {
@@ -114,6 +117,118 @@ func (d *DiscordBot) serverStatusHandler(s *discordgo.Session, i *discordgo.Inte
 	}
 }
 
+func (d *DiscordBot) monitorServerStartup(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	logger := d.logger.With().Str("username", i.Member.User.Username).Logger()
+	logger.Info().Msg("Monitoring server startup...")
+
+	sendFollowup := func(content string) {
+		_, err := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Content: content,
+		})
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to send follow-up message")
+		}
+	}
+
+	sendDM := func(content string) error {
+		channel, err := s.UserChannelCreate(i.Member.User.ID)
+		if err != nil {
+			return fmt.Errorf("cannot create DM channel: %w", err)
+		}
+		message, err := s.ChannelMessageSend(channel.ID, content)
+		if err != nil {
+			return fmt.Errorf("cannot send DM message: %w", err)
+		}
+
+		time.AfterFunc(10*time.Minute, func() {
+			err := s.ChannelMessageDelete(channel.ID, message.ID)
+			if err != nil {
+				logger.Error().Err(err).Msg("Failed to delete DM message")
+			} else {
+				logger.Info().Msg("Deleted DM message")
+			}
+		})
+		return nil
+	}
+
+	getPrettyName := func() string {
+		if i.Member.Nick != "" {
+			return i.Member.Nick
+		}
+		if i.Member.User.GlobalName != "" {
+			return i.Member.User.GlobalName
+		}
+		return i.Member.User.Username
+	}
+
+	getStartupMessage := func() string {
+		if d.config.CuteDMs {
+			messages := []string{
+				"Ka-pow! %s, I think I did it… hopefully 😅",
+				"🔥 %s, I managed to turn it on… not sure how, but hey!",
+				"Zap! %s, everything’s up! Did I do that right?",
+				"Ka-blam! %s, all done… I think? Maybe?",
+				"✨ %s, mission complete… I think I did okay 😳",
+				"🔥 %s, I did the thing… kinda proud, but also scared 😳",
+				"Zap! %s, I pressed all the right buttons… I hope 😬",
+				"💥 %s, I did something… hopefully the right thing 😅",
+				"Ka-pow! %s, I think it worked… but maybe don’t touch anything yet 😬",
+				"🔥 %s, everything’s awake! I’m… kinda terrified though 😳",
+				"Ka-blam! %s, I tried really hard! Please say it’s okay 🥺",
+				"⚙️ %s, I flipped the switches and… it didn’t break! Yay?",
+				"Zap! %s, I did it! I’m 60%% sure that’s fine 😅",
+			}
+			return fmt.Sprintf(messages[rand.Intn(len(messages))], getPrettyName())
+		} else {
+			return fmt.Sprintf("✅ %s, the server is now online!", getPrettyName())
+		}
+	}
+
+	intervals, err := modules.GenerateLogarithmicIntervals(3*time.Minute, 5*time.Second, 40*time.Second, 1.5, 1.5)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to generate intervals for server monitoring")
+		return
+	}
+
+	start := time.Now()
+
+	for _, interval := range intervals {
+		logger.Debug().
+			Dur("elapsed_time", time.Since(start).Round(time.Second)).
+			Dur("next_interval", interval.Round(time.Second)).
+			Msg("Waiting before next server check")
+
+		<-time.After(interval)
+
+		powerState, ledState := d.module.State()
+		if powerState.Err != nil || ledState.Err != nil {
+			logger.Error().Msg("Failed to retrieve server state during monitoring")
+			continue
+		}
+
+		if powerState.Value && ledState.Value {
+			elapsedDuration := time.Since(start).Round(time.Second)
+			logger.Info().Msgf("Server successfully started after %s", elapsedDuration)
+			msg := getStartupMessage()
+			err := sendDM(msg)
+			if err != nil {
+				logger.Error().Err(err).Msg("Failed to send DM to the user")
+				sendFollowup(msg)
+			}
+			return
+		}
+	}
+
+	logger.Warn().Msg("Server did not start within the timeout period")
+	msg := fmt.Sprintf("😅 %s, the server is taking longer than usual. Please check it manually", getPrettyName())
+	err = sendDM(msg)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to send DM to the user")
+		sendFollowup(msg)
+	}
+}
+
 func (d *DiscordBot) powerOnHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	logger := d.logger.With().Str("username", i.Member.User.Username).Logger()
 	logger.Info().Msg("A user attempts to switch on the server")
@@ -170,6 +285,8 @@ func (d *DiscordBot) powerOnHandler(s *discordgo.Session, i *discordgo.Interacti
 	}
 	logger.Info().Msg("Server switched on")
 	sendFollowup("✨ The server is waking up! It’ll be ready soon")
+
+	go d.monitorServerStartup(s, i)
 }
 
 func (d *DiscordBot) powerOffHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
