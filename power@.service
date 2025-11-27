@@ -12,6 +12,12 @@ Group=${GROUP}
 Type=simple
 ExecStart=/usr/local/bin/power -m %i
 
+# Security hardening
+NoNewPrivileges=yes
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+ProtectHome=yes
+ProtectSystem=full
+
 Restart=on-failure
 RestartSec=5s
 
